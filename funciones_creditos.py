@@ -19,11 +19,9 @@ def pagos_requeridos(creditos: pd.DataFrame, fecha: pd.Timestamp) -> pd.Series:
     pd.Series
         Serie con el número de pagos requeridos para cada crédito.
     """
-    # Determinar el último día del mes de la fecha dada
     ultimo_dia_mes = fecha + pd.offsets.MonthEnd(0)
     es_ultimo_dia_mes = fecha == ultimo_dia_mes
 
-    # Calcular la diferencia en meses entre la fecha de referencia y la fecha del primer pago
     pagos_req = (
         (fecha.year - creditos['fecha_primer_pago'].dt.year) * 12 +
         (fecha.month - creditos['fecha_primer_pago'].dt.month) -
@@ -31,10 +29,8 @@ def pagos_requeridos(creditos: pd.DataFrame, fecha: pd.Timestamp) -> pd.Series:
         1
     )
 
-    # Limitar el número de pagos requeridos entre 0 y el plazo del crédito
     pagos_req = pagos_req.clip(lower=0, upper=creditos['plazo']).astype(int)
 
-    # Solo se consideran los créditos cuya fecha de apertura es anterior o igual a la fecha de referencia
     pagos_req = pagos_req.where(creditos['fecha_apertura'] <= fecha)
     return pagos_req
 
@@ -82,7 +78,6 @@ def monto_pagado(
     monto_pag = pagos_filtrados.groupby('id_credito')['monto_pago'].sum()
     monto_pag = monto_pag.reindex(creditos.index)
 
-    # Para créditos sin pagos (o que aún no han iniciado) se asigna 0
     monto_pag = monto_pag.where((fecha < creditos['fecha_apertura']) | monto_pag.notnull(), 0)
     return monto_pag
 
@@ -417,11 +412,8 @@ def considerar(creditos: pd.DataFrame, fecha: pd.Timestamp) -> pd.DataFrame:
     fecha_actual = fecha.to_period('M').start_time
     fecha_maxima = pd.Timestamp('2200-12-31')
 
-    # Fecha inicial: el inicio del mes siguiente a la apertura del crédito
     fecha_inicial = (creditos['fecha_apertura'].dt.to_period('M') + 1).dt.start_time
 
-    # Fecha final: se usa la fecha de cierre, o una fecha muy lejana si no tiene cierre
     fecha_final = creditos['fecha_cierre'].fillna(fecha_maxima)
 
-    # Filtra y retorna un subconjunto del DataFrame con los créditos considerados
     return creditos[(fecha_inicial <= fecha_actual) & (fecha_actual < fecha_final)].copy()
